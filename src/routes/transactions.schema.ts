@@ -6,6 +6,7 @@ class TransactionsSchema {
       .object({
         title: z.string().min(8),
         amount: z.number().min(10, 'Invalid "amount"!'),
+        type: z.enum(['credit', 'debit']),
       })
       .safeParse(body)
   }
@@ -13,7 +14,15 @@ class TransactionsSchema {
   delete(body: any) {
     return z
       .object({
-        id: z.string().min(36).max(36),
+        id: z.string().uuid(),
+      })
+      .safeParse(body)
+  }
+
+  pick(body: any) {
+    return z
+      .object({
+        id: z.string().uuid(),
       })
       .safeParse(body)
   }

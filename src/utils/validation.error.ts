@@ -3,16 +3,16 @@ import { ZodError } from 'zod'
 import { DynamicObject } from '../interfaces/shared'
 
 interface ValidationErrorProps<T> {
-  res: FastifyReply
+  reply: FastifyReply
   error: { error: ZodError<T> } | { data: DynamicObject<T> }
   status: number
 }
 
 export const validationError = <T>({
-  res,
+  reply,
   error,
   status,
 }: ValidationErrorProps<T>) => {
   console.log(error)
-  return res.status(status).send(error)
+  return reply.status(status).send(error)
 }
