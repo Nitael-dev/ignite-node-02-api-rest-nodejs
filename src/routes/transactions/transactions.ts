@@ -1,10 +1,12 @@
 // eslint-disable-next-line
 import {randomUUID} from 'crypto'
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { knex } from '../database'
-import { cookiesDefault } from '../utils/cookies'
-import { formatDate } from '../utils/format-date'
-import { validationError } from '../utils/validation.error'
+import { FastifyInstance, FastifyReply } from 'fastify'
+import { knex } from '../../database'
+import { RequestParams } from '../../interfaces/shared'
+import { checkSessionIdExists } from '../../middlewares/check-session-id-exists'
+import { cookiesDefault } from '../../utils/cookies'
+import { formatDate } from '../../utils/format-date'
+import { validationError } from '../../utils/validation.error'
 import {
   TransactionsDeleteParams,
   TransactionsPickParams,
@@ -12,11 +14,10 @@ import {
 } from './transactions.interface'
 import { transactionsSchema } from './transactions.schema'
 
-type RequestBody<T> = FastifyRequest & { body: T }
+export async function transactionsRoutes(app: FastifyInstance) {
+  // Hooks
+  app.addHook('preHandler', checkSessionIdExists)
 
-type RequestParams<T> = FastifyRequest & { params: T }
-
-export const transactionsRoutes = async (app: FastifyInstance) => {
   // GET => "/"
   app.get('/', async ({ cookies }, reply) => {
     await knex('transactions')
@@ -39,26 +40,22 @@ export const transactionsRoutes = async (app: FastifyInstance) => {
   app.get(
     '/summary',
     // @ts-ignore
-    async (req, reply) => {
+    async ({ cookies }, reply) => {
       try {
-        const sessionId = req.cookies.session_id
-
-        if (!sessionId) {
-          return reply.code(404).send({
-            message: 'No one transaction encountered!',
-          })
-        }
-
         await knex('transactions')
           .where({
-            session_id: sessionId,
+            session_id: cookies.sessionId,
           })
           .sum('amount', { as: 'amount' })
           .then((data) => {
             return reply
               .status(200)
               .send(data)
-              .cookie('session_id', sessionId, cookiesDefault)
+              .cookie(
+                'session_id',
+                cookies.sessionId ?? randomUUID(),
+                cookiesDefault,
+              )
           })
           .catch((err) => {
             console.log('catch', err)
@@ -79,14 +76,9 @@ export const transactionsRoutes = async (app: FastifyInstance) => {
       { params, cookies }: RequestParams<TransactionsPickParams>,
       reply: FastifyReply,
     ) => {
-      const { success, ...err } = transactionsSchema.delete(params)
-      if (!success) {
-        validationError<TransactionsPickParams>({
-          reply,
-          error: { ...err },
-          status: 400,
-        })
-      }
+      // Schema
+      await transactionsSchema.delete(params, reply)
+
       try {
         const { id } = params
 
@@ -102,8 +94,8 @@ export const transactionsRoutes = async (app: FastifyInstance) => {
             if (!data) {
               return validationError<TransactionsDeleteParams>({
                 reply,
-                error: { ...err },
-                status: 404,
+                error: { message: '' },
+                status: 403,
               })
             }
             return reply.status(200).send(data)
@@ -123,15 +115,10 @@ export const transactionsRoutes = async (app: FastifyInstance) => {
   app.post(
     '/',
     // @ts-ignore
-    ({ body, cookies }: RequestBody<TransactionsPostBody>, reply) => {
-      const { success, ...err } = transactionsSchema.post(body)
-      if (!success) {
-        return validationError<TransactionsPostBody>({
-          reply,
-          error: { ...err },
-          status: 401,
-        })
-      }
+    async ({ body, cookies }: RequestParams<TransactionsPostBody>, reply) => {
+      // Schema
+      await transactionsSchema.post(body, reply)
+
       try {
         const { title, amount, type } = body
         const sessionId = cookies.session_id ?? randomUUID()
@@ -145,7 +132,7 @@ export const transactionsRoutes = async (app: FastifyInstance) => {
           session_id: sessionId,
         }
 
-        knex('transactions')
+        await knex('transactions')
           .insert(toInsert)
           .then(() =>
             reply
@@ -172,14 +159,9 @@ export const transactionsRoutes = async (app: FastifyInstance) => {
       { params, cookies }: RequestParams<TransactionsDeleteParams>,
       reply: FastifyReply,
     ) => {
-      const { success, ...err } = transactionsSchema.delete(params)
-      if (!success) {
-        validationError<TransactionsDeleteParams>({
-          reply,
-          error: { ...err },
-          status: 401,
-        })
-      }
+      // Schema
+      await transactionsSchema.delete(params, reply)
+
       try {
         const { id } = params
 
@@ -189,13 +171,13 @@ export const transactionsRoutes = async (app: FastifyInstance) => {
           .delete()
           .or.then((data) => {
             if (!data) {
-              validationError<TransactionsDeleteParams>({
+              return validationError<TransactionsDeleteParams>({
                 reply,
-                error: { ...err },
-                status: 404,
+                error: { message: '' },
+                status: 403,
               })
             }
-            return reply.status(data ? 204 : 400).send(data)
+            return reply.status(data ? 204 : 404).send(data)
           })
           .catch((err) => {
             console.log('catch', err)
