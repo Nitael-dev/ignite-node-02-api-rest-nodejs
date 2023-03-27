@@ -3,7 +3,7 @@ import { TransactionsDeleteParams } from '../routes/transactions/transactions.in
 import { validationError } from '../utils/validation.error'
 
 export async function checkSessionIdExists(req: any, reply: FastifyReply) {
-  const { sessionId } = req.cookies
+  const sessionId = req.cookies.session_id
 
   if (!sessionId)
     return await validationError<TransactionsDeleteParams>({

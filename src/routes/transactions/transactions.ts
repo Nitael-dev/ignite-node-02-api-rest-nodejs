@@ -25,13 +25,13 @@ export async function transactionsRoutes(app: FastifyInstance) {
         session_id: cookies.session_id ?? '',
       })
       .then((data) =>
-        reply
-          .code(200)
-          .send(
-            data.length > 0
-              ? data
-              : { message: 'No one transaction encoutered!' },
-          ),
+        reply.code(200).send(
+          data.length > 0
+            ? {
+                transactions: data,
+              }
+            : { message: 'No one transaction encoutered!' },
+        ),
       )
       .catch((err) => reply.code(500).send(err))
   })
@@ -44,13 +44,13 @@ export async function transactionsRoutes(app: FastifyInstance) {
       try {
         await knex('transactions')
           .where({
-            session_id: cookies.sessionId,
+            session_id: cookies.session_id,
           })
           .sum('amount', { as: 'amount' })
           .then((data) => {
             return reply
               .status(200)
-              .send(data)
+              .send({ summary: data[0] })
               .cookie(
                 'session_id',
                 cookies.sessionId ?? randomUUID(),
@@ -94,8 +94,8 @@ export async function transactionsRoutes(app: FastifyInstance) {
             if (!data) {
               return validationError<TransactionsDeleteParams>({
                 reply,
-                error: { message: '' },
-                status: 403,
+                error: { message: 'No one transaction founded!' },
+                status: 404,
               })
             }
             return reply.status(200).send(data)
@@ -137,10 +137,7 @@ export async function transactionsRoutes(app: FastifyInstance) {
           .then(() =>
             reply
               .status(201)
-              .cookie('session_id', sessionId, {
-                path: '/',
-                maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-              })
+              .cookie('session_id', sessionId, cookiesDefault)
               .send(toInsert),
           )
           .catch((err) => reply.status(500).send(err))
@@ -173,8 +170,8 @@ export async function transactionsRoutes(app: FastifyInstance) {
             if (!data) {
               return validationError<TransactionsDeleteParams>({
                 reply,
-                error: { message: '' },
-                status: 403,
+                error: { message: 'No one transaction founded!' },
+                status: 404,
               })
             }
             return reply.status(data ? 204 : 404).send(data)

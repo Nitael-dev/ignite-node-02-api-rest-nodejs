@@ -1,8 +1,16 @@
-import 'dotenv/config'
+import { config } from 'dotenv'
 import { z } from 'zod'
+
+if (process.env.NODE_ENV === 'test') {
+  config({ path: '.env.test' })
+} else {
+  config()
+}
 
 const envSchema = z.object({
   DATABASE_URL: z.string(),
+  TEST_EMAIL: z.string().optional(),
+  TEST_PASSWORD: z.string().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('production'),
   PORT: z.any().transform((data: string | null) => {
     const regex = /[^0-9]/g

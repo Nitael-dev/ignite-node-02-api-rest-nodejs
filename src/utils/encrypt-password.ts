@@ -1,10 +1,20 @@
 import bcrypt from 'bcrypt'
 
-export function encryptString(password: string) {
-  const saltRounds = 10
-  const salt = bcrypt.genSaltSync(saltRounds)
+class EncryptUtil {
+  salt: string
 
-  const parsedPassword = bcrypt.hashSync(password, salt)
+  constructor() {
+    const saltRounds = 10
+    this.salt = bcrypt.genSaltSync(saltRounds)
+  }
 
-  return parsedPassword
+  encryptString(password: string) {
+    return bcrypt.hashSync(password, this.salt)
+  }
+
+  decryptString(password: string, encrypted: string) {
+    return bcrypt.compareSync(password, encrypted)
+  }
 }
+
+export const encryptUtil = new EncryptUtil()
