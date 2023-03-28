@@ -11,24 +11,9 @@ const envSchema = z.object({
   DATABASE_URL: z.string(),
   TEST_EMAIL: z.string().optional(),
   TEST_PASSWORD: z.string().optional(),
+  DATABASE_CLIENT: z.enum(['sqlite', 'pg']),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('production'),
-  PORT: z.any().transform((data: string | null) => {
-    const regex = /[^0-9]/g
-    const isValid = data && data.replace(regex, '') === data
-
-    const parsedValue = data
-      ? isValid
-        ? Number(data.replace(regex, ''))
-        : 3333
-      : 3333
-    if (isValid) {
-      if (parsedValue >= 0 && parsedValue < 65536) {
-        return parsedValue
-      }
-      return 3333
-    }
-    return parsedValue
-  }),
+  PORT: z.coerce.number().default(3333),
 })
 
 const _env = envSchema.safeParse(process.env)
